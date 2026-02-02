@@ -1,40 +1,27 @@
-import murmurhash from "npm:murmurhash@2.0.1";
-import { v4 as uuid } from "npm:uuid@13.0.0";
+import type { EvaluationContext, Rule } from "./rule.ts";
 
-const TOTAL_BUCKETS = 10;
-
-export class Flag {
-	private id: string = uuid();
+export class FeatureFlag {
+	private id: string;
 
 	constructor(
-		private name: string,
-		private rolloutPercentage: number,
-		private restrictedRoles: string[],
+		public name: string,
+		private rules: Rule[],
 	) {
-		this.name = name;
-		this.restrictedRoles = restrictedRoles;
+		this.id = crypto.randomUUID();
 	}
 
-	private getBucket(seed: string, totalBuckets: number): number {
-		const hash = murmurhash.v3(seed);
-		return (Math.abs(hash) % totalBuckets) + 1;
+	isEnabled(context: EvaluationContext): boolean {
+		return this.rules.every((rule) => rule.evaluate(context));
 	}
 
-	private isUserRoleEligible(userRoles: string[]): boolean {
-		if (this.restrictedRoles.length === 0) return true;
+	static fromJSON(data: {
+		id: string;
+		name: string;
+		rules: Rule[];
+	}): FeatureFlag {
+		const flag = new FeatureFlag(data.name, data.rules);
+		flag.id = data.id;
 
-		return this.restrictedRoles.some((role) => userRoles.includes(role));
-	}
-
-	public checkIsActive(userId: string, userRoles: string[]): boolean {
-		if (!this.isUserRoleEligible(userRoles)) return false;
-
-		const userBucket = this.getBucket(`${this.id}-${userId}`, TOTAL_BUCKETS);
-
-		const activeBuckets = Math.floor(
-			(this.rolloutPercentage / 100) * TOTAL_BUCKETS,
-		);
-
-		return userBucket < activeBuckets;
+		return flag;
 	}
 }
