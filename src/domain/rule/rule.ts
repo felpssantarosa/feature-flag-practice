@@ -7,7 +7,7 @@ export interface RuleDefinition {
 	id: string;
 	name: string;
 	type: RuleType;
-	config: string;
+	config: string | object;
 }
 
 export interface RuleJSON {
@@ -49,10 +49,13 @@ export class PercentageRule implements Rule {
 
 	constructor(
 		public name: string,
-		configJSON: string,
+		config: string | object,
 	) {
 		this.id = crypto.randomUUID();
-		this.config = JSON.parse(JSON.stringify(configJSON)) as PercentageConfig;
+		this.config =
+			typeof config === "string"
+				? (JSON.parse(config) as PercentageConfig)
+				: (config as PercentageConfig);
 		this.totalBuckets = this.config.totalBuckets ?? 10;
 	}
 
@@ -95,10 +98,13 @@ export class TargetedRule implements Rule {
 
 	constructor(
 		public name: string,
-		configJSON: string,
+		config: string | object,
 	) {
 		this.id = crypto.randomUUID();
-		this.config = JSON.parse(JSON.stringify(configJSON)) as TargetedConfig;
+		this.config =
+			typeof config === "string"
+				? (JSON.parse(config) as TargetedConfig)
+				: (config as TargetedConfig);
 	}
 
 	evaluate(context: RuleContext): boolean {
