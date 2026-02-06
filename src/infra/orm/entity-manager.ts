@@ -6,10 +6,15 @@ import type { RuleRow } from "../../services/rule.ts";
 export class EntityManager {
 	constructor(private db: Database) {}
 
-	findFlagRowByName(name: string): [string, string] | undefined {
+	findFlagRowByNameAndEnvironment(
+		name: string,
+		environment: string,
+	): [string, string, string] | undefined {
 		return this.db
-			.prepare("SELECT id, name FROM flags WHERE name = ?")
-			.value<[string, string]>([name]);
+			.prepare(
+				"SELECT id, name, environment FROM flags WHERE name = ? AND environment = ?",
+			)
+			.value<[string, string, string]>([name, environment]);
 	}
 
 	findRulesByFlagId(flagId: string): RuleRow[] {
@@ -32,8 +37,10 @@ export class EntityManager {
 		await Promise.resolve(
 			this.db.transaction(() => {
 				this.db
-					.prepare("INSERT OR REPLACE INTO flags (id, name) VALUES (?, ?)")
-					.run([flag.id, flag.name]);
+					.prepare(
+						"INSERT OR REPLACE INTO flags (id, name, environment) VALUES (?, ?, ?)",
+					)
+					.run([flag.id, flag.name, flag.environment]);
 
 				this.db.prepare("DELETE FROM rules WHERE flag_id = ?").run([flag.id]);
 

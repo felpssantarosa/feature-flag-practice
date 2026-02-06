@@ -6,6 +6,7 @@ export class FeatureFlag {
 	constructor(
 		public name: string,
 		private rules: Rule[],
+		private environment: string,
 	) {
 		this.id = crypto.randomUUID();
 	}
@@ -40,18 +41,20 @@ export class FeatureFlag {
 		id: string;
 		name: string;
 		rules: Rule[];
+		environment: string;
 	}): FeatureFlag {
-		const flag = new FeatureFlag(data.name, data.rules);
+		const flag = new FeatureFlag(data.name, data.rules, data.environment);
 		flag.id = data.id;
 
 		return flag;
 	}
 
-	toJSON(): { id: string; name: string; rules: Rule[] } {
+	toJSON(): { id: string; name: string; rules: Rule[]; environment: string } {
 		return {
 			id: this.id,
 			name: this.name,
 			rules: this.rules,
+			environment: this.environment,
 		};
 	}
 }

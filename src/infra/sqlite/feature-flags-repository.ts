@@ -22,8 +22,8 @@ export class FeatureFlagsRepository implements FeatureFlagRepository {
 		await this.persist(flag);
 	}
 
-	findByName(name: string): Promise<FeatureFlag | null> {
-		const flagRow = this.em.findFlagRowByName(name);
+	findByName(name: string, environment: string): Promise<FeatureFlag | null> {
+		const flagRow = this.em.findFlagRowByNameAndEnvironment(name, environment);
 
 		if (!flagRow) return new Promise((resolve) => resolve(null));
 
@@ -41,14 +41,14 @@ export class FeatureFlagsRepository implements FeatureFlagRepository {
 		);
 
 		return new Promise((resolve) =>
-			resolve(FeatureFlag.fromJSON({ id, name: flagName, rules })),
+			resolve(FeatureFlag.fromJSON({ id, name: flagName, rules, environment })),
 		);
 	}
 
 	private async persist(flag: FeatureFlag): Promise<void> {
-		const { id, name, rules } = flag.toJSON();
+		const { id, name, rules, environment } = flag.toJSON();
 
-		const flagEntity = new FlagEntity({ id, name });
+		const flagEntity = new FlagEntity({ id, name, environment });
 
 		const ruleEntities = rules.map((rule, index) => {
 			const def = rule.toJSON();

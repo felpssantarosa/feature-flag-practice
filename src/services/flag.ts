@@ -12,10 +12,11 @@ export class FlagService {
 	public async createFlag({
 		name,
 		ruleDefinitions,
+		environment,
 	}: CreateFlagParams): Promise<FeatureFlag> {
 		const rules = this.ruleService.createMany(ruleDefinitions);
 
-		const flag = new FeatureFlag(name, rules);
+		const flag = new FeatureFlag(name, rules, environment);
 
 		await this.flagRepository.save(flag);
 
@@ -28,7 +29,10 @@ export class FlagService {
 		return flag;
 	}
 
-	async findFlagByName(name: string): Promise<FeatureFlag | null> {
-		return await this.flagRepository.findByName(name);
+	async findFlagByName(
+		name: string,
+		environment: string,
+	): Promise<FeatureFlag | null> {
+		return await this.flagRepository.findByName(name, environment);
 	}
 }
