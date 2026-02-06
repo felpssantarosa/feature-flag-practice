@@ -8,7 +8,7 @@ export class User {
 	private id: string = crypto.randomUUID();
 
 	constructor(
-		private roles: Array<typeof Roles>,
+		private roles: Roles[],
 		private country: string,
 	) {}
 
@@ -16,7 +16,7 @@ export class User {
 		return this.id;
 	}
 
-	public getRole() {
+	public getRoles() {
 		return this.roles;
 	}
 
