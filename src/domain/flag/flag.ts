@@ -1,4 +1,4 @@
-import type { EvaluationContext, Rule } from "./rule.ts";
+import type { Rule, RuleContext } from "../rule/rule.ts";
 
 export class FeatureFlag {
 	private id: string;
@@ -10,7 +10,15 @@ export class FeatureFlag {
 		this.id = crypto.randomUUID();
 	}
 
-	isEnabled(context: EvaluationContext): boolean {
+	getId(): string {
+		return this.id;
+	}
+
+	getRules(): Rule[] {
+		return this.rules;
+	}
+
+	isEnabled(context: RuleContext): boolean {
 		return this.rules.every((rule) => rule.evaluate(context));
 	}
 
@@ -23,5 +31,13 @@ export class FeatureFlag {
 		flag.id = data.id;
 
 		return flag;
+	}
+
+	toJSON(): { id: string; name: string; rules: Rule[] } {
+		return {
+			id: this.id,
+			name: this.name,
+			rules: this.rules,
+		};
 	}
 }
