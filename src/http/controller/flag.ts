@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { FeatureFlagsRepository } from "../../infra/sqlite/feature-flags-repository.ts";
 import { FlagService } from "../../services/flag.ts";
 import { RuleService } from "../../services/rule.ts";
+import type { RuleDefinition, RuleContext } from "../../domain/rule/rule.ts";
 
 const featureFlagRepository = new FeatureFlagsRepository();
 const ruleService = new RuleService();
@@ -18,5 +19,57 @@ export const featureFlagRoutes = (fastify: FastifyInstance) => {
 		}
 
 		return reply.send(flag);
+	});
+
+	fastify.put("/environments/:env/flags/:key", async (request, reply) => {
+		const { key } = request.params as { key: string };
+		const body = request.body as unknown as {
+			name?: string;
+			ruleDefinitions?: Array<Record<string, unknown>>;
+		};
+
+		const name = body.name ?? key;
+		const definitions = body.ruleDefinitions ?? [];
+
+		const flag = await flagService.findFlagByName(name);
+
+		if (flag) {
+			flag
+				.getRules()
+				.splice(
+					0,
+					flag.getRules().length,
+					...ruleService.createMany(definitions as unknown as RuleDefinition[]),
+				);
+			await flagService.updateFlag(flag);
+			return reply.send({ message: "updated", flag });
+		}
+
+		const created = await flagService.createFlag({
+			name,
+			ruleDefinitions: definitions as unknown as RuleDefinition[],
+		});
+		return reply.status(201).send({ message: "created", flag: created });
+	});
+
+	fastify.post("/environments/:env/evaluate", async (request, reply) => {
+		const body = request.body as {
+			flag: string;
+			context?: Record<string, unknown>;
+		};
+
+		const { flag: flagName, context = {} } = body;
+
+		if (!flagName)
+			return reply.status(400).send({ message: "flag is required" });
+
+		const flag = await flagService.findFlagByName(flagName);
+
+		if (!flag)
+			return reply.status(404).send({ message: "Feature flag not found" });
+
+		const result = flag.evaluate(context as unknown as RuleContext);
+
+		return reply.send(result);
 	});
 };
