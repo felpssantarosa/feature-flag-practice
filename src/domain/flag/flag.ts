@@ -19,7 +19,21 @@ export class FeatureFlag {
 	}
 
 	isEnabled(context: RuleContext): boolean {
-		return this.rules.every((rule) => rule.evaluate(context));
+		return this.rules.some((rule) => rule.evaluate(context));
+	}
+
+	evaluate(context: RuleContext): { enabled: boolean; reason: string } {
+		if (!this.rules || this.rules.length === 0) {
+			return { enabled: false, reason: "no-rules" };
+		}
+
+		for (const rule of this.rules) {
+			if (rule.evaluate(context)) {
+				return { enabled: true, reason: rule.type };
+			}
+		}
+
+		return { enabled: false, reason: "none" };
 	}
 
 	static fromJSON(data: {
