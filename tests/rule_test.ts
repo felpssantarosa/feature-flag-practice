@@ -3,12 +3,12 @@ import { PercentageRule, TargetedRule } from "../src/domain/rule/rule.ts";
 
 Deno.test("PercentageRule is deterministic for same userId", () => {
 	const rule = new PercentageRule("half", { percentage: 50, totalBuckets: 10 });
-	const ctx = { userId: "user-123" };
+	const context = { userId: "user-123" };
 
-	const a = rule.evaluate(ctx);
-	const b = rule.evaluate(ctx);
+	const firstEvaluation = rule.evaluate(context);
+	const secondEvaluation = rule.evaluate(context);
 
-	assertEquals(a, b);
+	assertEquals(firstEvaluation, secondEvaluation);
 });
 
 Deno.test("PercentageRule respects percentage boundaries", () => {
