@@ -2,6 +2,7 @@
   "imports": {
     "@db/sqlite": "jsr:@db/sqlite@^0.13.0",
     "fastify": "npm:fastify@^5.7.4",
-    "murmurhash": "npm:murmurhash@2.0.1"
+    "murmurhash": "npm:murmurhash@2.0.1",
+    "std/": "https://deno.land/std@0.199.0/"
   }
 }
