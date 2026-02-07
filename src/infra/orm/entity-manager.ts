@@ -5,13 +5,13 @@ import type { RuleRow } from "../../services/rule.ts";
 import type { EvaluationRow } from "../repository-types.ts";
 
 export class EntityManager {
-	constructor(private db: Database) {}
+	constructor(private database: Database) {}
 
-	findFlagRowByName(
+	findFlagRowByNameAndEnvironment(
 		name: string,
 		environment: string,
 	): [string, string, string, number, string | null] | undefined {
-		return this.db
+		return this.database
 			.prepare(
 				"SELECT id, name, environment, enabled, description FROM flags WHERE name = ? AND environment = ?",
 			)
@@ -22,7 +22,7 @@ export class EntityManager {
 	}
 
 	findRulesByFlagId(flagId: string): RuleRow[] {
-		return this.db
+		return this.database
 			.prepare(
 				`
       SELECT id, type, name, config
@@ -39,8 +39,8 @@ export class EntityManager {
 		rules: RuleEntity[],
 	): Promise<void> {
 		await Promise.resolve(
-			this.db.transaction(() => {
-				this.db
+			this.database.transaction(() => {
+				this.database
 					.prepare(
 						"INSERT OR REPLACE INTO flags (id, name, environment, enabled, description) VALUES (?, ?, ?, ?, ?)",
 					)
@@ -52,9 +52,9 @@ export class EntityManager {
 						flag.description,
 					]);
 
-				this.db.prepare("DELETE FROM rules WHERE flag_id = ?").run([flag.id]);
+				this.database.prepare("DELETE FROM rules WHERE flag_id = ?").run([flag.id]);
 
-				const insertRule = this.db.prepare(
+				const insertRule = this.database.prepare(
 					`
         INSERT INTO rules (id, flag_id, type, name, config, position)
         VALUES (?, ?, ?, ?, ?, ?)
@@ -75,7 +75,6 @@ export class EntityManager {
 		);
 	}
 
-	// Save an evaluation record
 	saveEvaluation(
 		flagId: string,
 		environment: string,
@@ -83,7 +82,7 @@ export class EntityManager {
 		result: boolean,
 		reason: string,
 	): void {
-		this.db
+		this.database
 			.prepare(
 				`INSERT INTO evaluations (id, flag_id, environment, context, result, reason) VALUES (?, ?, ?, ?, ?, ?)`,
 			)
@@ -98,7 +97,7 @@ export class EntityManager {
 	}
 
 	async findEvaluationsByFlagId(flagId: string): Promise<EvaluationRow[]> {
-		return this.db
+		return this.database
 			.prepare(
 				`SELECT id, flag_id, environment, context, result, reason, created_at FROM evaluations WHERE flag_id = ? ORDER BY created_at DESC`,
 			)

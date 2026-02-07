@@ -7,9 +7,13 @@ import type { RuleDefinition, RuleContext } from "../../domain/rule/rule.ts";
 
 const featureFlagsRepository = new FeatureFlagsRepository();
 const ruleService = new RuleService();
-const flagService = new FlagService(featureFlagsRepository, ruleService);
 const evaluationCache = new SimpleCache<{ enabled: boolean; reason: string }>(
 	5000,
+);
+const flagService = new FlagService(
+	featureFlagsRepository,
+	ruleService,
+	evaluationCache,
 );
 
 export const featureFlagRoutes = (fastify: FastifyInstance) => {
@@ -112,28 +116,19 @@ export const featureFlagRoutes = (fastify: FastifyInstance) => {
 
 			const { flag: flagName, context = {} } = body;
 
-			if (!flagName)
-				return reply.status(400).send({ message: "flag name is required" });
-
-			const flag = await flagService.findFlagByName(flagName, env);
-
-			if (!flag)
-				return reply.status(404).send({ message: "feature flag not found" });
-
-			const cacheKey = `${env}::${flag.getId()}::${JSON.stringify(context)}`;
-			const cached = evaluationCache.get(cacheKey);
-			if (cached) return reply.send(cached);
-
-			const result = flag.evaluate(context as unknown as RuleContext);
-			await flagService.recordEvaluation(
-				flag.getId(),
+			const { response, error } = await flagService.evaluate(
+				flagName,
 				env,
 				context as Record<string, unknown>,
-				result,
 			);
-			evaluationCache.set(cacheKey, result);
 
-			return reply.send(result);
+			if (error) {
+				return reply
+					.status(error.httpErrorCode ?? 500)
+					.send({ message: error.message });
+			}
+
+			return reply.send(response);
 		},
 	);
 
@@ -159,32 +154,17 @@ export const featureFlagRoutes = (fastify: FastifyInstance) => {
 		async (request, reply) => {
 			const { env } = request.params as { env: string };
 			const body = request.body as {
-				flags: string[];
+				flagNames: string[];
 				context?: RuleContext;
 			};
 
-			const { flags, context = {} } = body;
+			const { flagNames, context = {} } = body;
 
-			const results: Record<string, { enabled: boolean; reason: string }> = {};
-
-			for (const flag of flags) {
-				const flagFound = await flagService.findFlagByName(flag, env);
-
-				if (!flagFound) {
-					results[flag] = { enabled: false, reason: "not-found" };
-					continue;
-				}
-
-				const res = flagFound.evaluate(context);
-				results[flag] = res;
-
-				await flagService.recordEvaluation(
-					flagFound.getId(),
-					env,
-					context as Record<string, unknown>,
-					res,
-				);
-			}
+			const results = await flagService.bulkEvaluate(
+				flagNames,
+				env,
+				context as Record<string, unknown>,
+			);
 
 			return reply.send(results);
 		},
