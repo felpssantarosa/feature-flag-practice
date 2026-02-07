@@ -21,6 +21,10 @@ export class FeatureFlag {
 		return this.rules;
 	}
 
+	getEnvironment(): string {
+		return this.environment;
+	}
+
 	isEnabled(context: RuleContext): boolean {
 		return this.rules.some((rule) => rule.evaluate(context));
 	}
