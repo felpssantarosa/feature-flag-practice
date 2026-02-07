@@ -122,9 +122,9 @@ Deno.test("Bulk evaluate returns per-flag results and records evaluations", asyn
 	assertEquals(body.missing.reason, "not-found");
 
 	// ensure evaluations persisted for 'one'
-	const foundOne = await flagSvc.findFlagByName("one", "test");
+	const foundOne = await flagService.findFlagByName("one", "test");
 	if (!foundOne) throw new Error("flag not found after create");
-	const evs = await flagSvc.getEvaluations(foundOne.getId());
+	const evs = await flagService.getEvaluations(foundOne.getId());
 	if (evs.length === 0) throw new Error("expected evaluation to be recorded");
 
 	await app.close();
@@ -182,7 +182,7 @@ Deno.test("Update flag changes enabled and description and rules", async () => {
 	assertEquals(updateResp.statusCode, 200);
 
 	// inspect DB rows after update
-	const flagsRows = db
+	const flagsRows = database
 		.prepare("SELECT id, name, enabled, description FROM flags")
 		.all();
 	console.log("flags rows after update count", flagsRows.length);
