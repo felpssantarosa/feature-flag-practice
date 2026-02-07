@@ -7,6 +7,8 @@ export class FeatureFlag {
 		public name: string,
 		private rules: Rule[],
 		private environment: string,
+		public enabled: boolean = false,
+		public description: string | null = null,
 	) {
 		this.id = crypto.randomUUID();
 	}
@@ -42,19 +44,36 @@ export class FeatureFlag {
 		name: string;
 		rules: Rule[];
 		environment: string;
+		enabled?: boolean;
+		description?: string | null;
 	}): FeatureFlag {
-		const flag = new FeatureFlag(data.name, data.rules, data.environment);
+		const flag = new FeatureFlag(
+			data.name,
+			data.rules,
+			data.environment,
+			data.enabled ?? false,
+			data.description ?? null,
+		);
 		flag.id = data.id;
 
 		return flag;
 	}
 
-	toJSON(): { id: string; name: string; rules: Rule[]; environment: string } {
+	toJSON(): {
+		id: string;
+		name: string;
+		rules: Rule[];
+		environment: string;
+		enabled: boolean;
+		description?: string | null;
+	} {
 		return {
 			id: this.id,
 			name: this.name,
 			rules: this.rules,
 			environment: this.environment,
+			enabled: this.enabled,
+			description: this.description,
 		};
 	}
 }

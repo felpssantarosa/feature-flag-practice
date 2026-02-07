@@ -1,7 +1,10 @@
 import { Database } from "@db/sqlite";
 import { FeatureFlag } from "../../domain/flag/flag.ts";
 import type { RuleRow } from "../../services/rule.ts";
-import type { FeatureFlagRepository } from "../repository-types.ts";
+import type {
+	EvaluationRow,
+	FeatureFlagRepository,
+} from "../repository-types.ts";
 import { FlagEntity } from "../orm/entities/Flag.ts";
 import { RuleEntity } from "../orm/entities/Rule.ts";
 import { EntityManager } from "../orm/entity-manager.ts";
@@ -23,11 +26,11 @@ export class FeatureFlagsRepository implements FeatureFlagRepository {
 	}
 
 	findByName(name: string, environment: string): Promise<FeatureFlag | null> {
-		const flagRow = this.em.findFlagRowByNameAndEnvironment(name, environment);
+		const flagRow = this.em.findFlagRowByName(name, environment);
 
 		if (!flagRow) return new Promise((resolve) => resolve(null));
 
-		const [id, flagName] = flagRow;
+		const [id, flagName, env, enabledNum, description] = flagRow;
 
 		const ruleRows = this.em.findRulesByFlagId(id);
 
@@ -41,14 +44,30 @@ export class FeatureFlagsRepository implements FeatureFlagRepository {
 		);
 
 		return new Promise((resolve) =>
-			resolve(FeatureFlag.fromJSON({ id, name: flagName, rules, environment })),
+			resolve(
+				FeatureFlag.fromJSON({
+					id,
+					name: flagName,
+					rules,
+					environment: env,
+					enabled: Boolean(enabledNum),
+					description,
+				}),
+			),
 		);
 	}
 
 	private async persist(flag: FeatureFlag): Promise<void> {
-		const { id, name, rules, environment } = flag.toJSON();
+		const { id, name, rules, environment, enabled, description } =
+			flag.toJSON();
 
-		const flagEntity = new FlagEntity({ id, name, environment });
+		const flagEntity = new FlagEntity({
+			id,
+			name,
+			environment,
+			enabled,
+			description,
+		});
 
 		const ruleEntities = rules.map((rule, index) => {
 			const def = rule.toJSON();
@@ -64,5 +83,24 @@ export class FeatureFlagsRepository implements FeatureFlagRepository {
 		});
 
 		await this.em.saveFlagWithRules(flagEntity, ruleEntities);
+	}
+
+	async recordEvaluation(
+		flagId: string,
+		environment: string,
+		context: Record<string, unknown>,
+		result: { enabled: boolean; reason: string },
+	) {
+		this.em.saveEvaluation(
+			flagId,
+			environment,
+			JSON.stringify(context),
+			result.enabled,
+			result.reason,
+		);
+	}
+
+	async getEvaluations(flagId: string): Promise<EvaluationRow[]> {
+		return this.em.findEvaluationsByFlagId(flagId);
 	}
 }

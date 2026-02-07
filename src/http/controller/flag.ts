@@ -2,11 +2,15 @@ import type { FastifyInstance } from "fastify";
 import { FeatureFlagsRepository } from "../../infra/sqlite/feature-flags-repository.ts";
 import { FlagService } from "../../services/flag.ts";
 import { RuleService } from "../../services/rule.ts";
+import { SimpleCache } from "../../services/cache.ts";
 import type { RuleDefinition, RuleContext } from "../../domain/rule/rule.ts";
 
-const featureFlagRepository = new FeatureFlagsRepository();
+const featureFlagsRepository = new FeatureFlagsRepository();
 const ruleService = new RuleService();
-const flagService = new FlagService(featureFlagRepository, ruleService);
+const flagService = new FlagService(featureFlagsRepository, ruleService);
+const evaluationCache = new SimpleCache<{ enabled: boolean; reason: string }>(
+	5000,
+);
 
 export const featureFlagRoutes = (fastify: FastifyInstance) => {
 	fastify.get("/flags/:name", async (request, reply) => {
@@ -31,7 +35,15 @@ export const featureFlagRoutes = (fastify: FastifyInstance) => {
 					properties: { env: { type: "string" }, key: { type: "string" } },
 					required: ["env", "key"],
 				},
-				body: { type: "object" },
+				body: {
+					type: "object",
+					properties: {
+						name: { type: "string" },
+						ruleDefinitions: { type: "array" },
+						enabled: { type: "boolean" },
+						description: { type: ["string", "null"] },
+					},
+				},
 			},
 		},
 		async (request, reply) => {
@@ -39,6 +51,8 @@ export const featureFlagRoutes = (fastify: FastifyInstance) => {
 			const body = request.body as unknown as {
 				name?: string;
 				ruleDefinitions?: Array<Record<string, unknown>>;
+				enabled?: boolean;
+				description?: string | null;
 			};
 
 			const name = body.name ?? key;
@@ -56,6 +70,8 @@ export const featureFlagRoutes = (fastify: FastifyInstance) => {
 							definitions as unknown as RuleDefinition[],
 						),
 					);
+				flag.enabled = body.enabled ?? flag.enabled;
+				flag.description = body.description ?? flag.description;
 				await flagService.updateFlag(flag);
 				return reply.send({ message: "updated", flag });
 			}
@@ -64,6 +80,8 @@ export const featureFlagRoutes = (fastify: FastifyInstance) => {
 				name,
 				ruleDefinitions: definitions as unknown as RuleDefinition[],
 				environment: env,
+				enabled: body.enabled,
+				description: body.description,
 			});
 			return reply.status(201).send({ message: "created", flag: created });
 		},
@@ -102,9 +120,73 @@ export const featureFlagRoutes = (fastify: FastifyInstance) => {
 			if (!flag)
 				return reply.status(404).send({ message: "feature flag not found" });
 
+			const cacheKey = `${env}::${flag.getId()}::${JSON.stringify(context)}`;
+			const cached = evaluationCache.get(cacheKey);
+			if (cached) return reply.send(cached);
+
 			const result = flag.evaluate(context as unknown as RuleContext);
+			await flagService.recordEvaluation(
+				flag.getId(),
+				env,
+				context as Record<string, unknown>,
+				result,
+			);
+			evaluationCache.set(cacheKey, result);
 
 			return reply.send(result);
+		},
+	);
+
+	fastify.post(
+		"/environments/:env/evaluate/bulk",
+		{
+			schema: {
+				params: {
+					type: "object",
+					properties: { env: { type: "string" } },
+					required: ["env"],
+				},
+				body: {
+					type: "object",
+					properties: {
+						flags: { type: "array", items: { type: "string" } },
+						context: { type: "object" },
+					},
+					required: ["flags"],
+				},
+			},
+		},
+		async (request, reply) => {
+			const { env } = request.params as { env: string };
+			const body = request.body as {
+				flags: string[];
+				context?: RuleContext;
+			};
+
+			const { flags, context = {} } = body;
+
+			const results: Record<string, { enabled: boolean; reason: string }> = {};
+
+			for (const flag of flags) {
+				const flagFound = await flagService.findFlagByName(flag, env);
+
+				if (!flagFound) {
+					results[flag] = { enabled: false, reason: "not-found" };
+					continue;
+				}
+
+				const res = flagFound.evaluate(context);
+				results[flag] = res;
+
+				await flagService.recordEvaluation(
+					flagFound.getId(),
+					env,
+					context as Record<string, unknown>,
+					res,
+				);
+			}
+
+			return reply.send(results);
 		},
 	);
 };

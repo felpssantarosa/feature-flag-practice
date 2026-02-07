@@ -4,4 +4,6 @@ export type CreateFlagParams = {
 	name: string;
 	ruleDefinitions: RuleDefinition[];
 	environment: string;
+	enabled?: boolean;
+	description?: string | null;
 };
