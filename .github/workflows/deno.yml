@@ -12,4 +12,4 @@ jobs:
         with:
           deno-version: v2.x
       - name: Run tests
-        run: deno test --no-check
+        run: deno task test

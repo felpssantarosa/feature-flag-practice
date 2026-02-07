@@ -4,5 +4,8 @@
     "fastify": "npm:fastify@^5.7.4",
     "murmurhash": "npm:murmurhash@2.0.1",
     "std/": "https://deno.land/std@0.199.0/"
+  },
+  "tasks": {
+    "test": "deno test --allow-env --allow-read --allow-write --allow-net --allow-ffi --no-check"
   }
 }
