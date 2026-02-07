@@ -28,9 +28,15 @@ export class FeatureFlagsRepository implements FeatureFlagRepository {
 	findByName(name: string, environment: string): Promise<FeatureFlag | null> {
 		const flagRow = this.em.findFlagRowByNameAndEnvironment(name, environment);
 
-		if (!flagRow) return new Promise((resolve) => resolve(null));
+		if (!flagRow) return Promise.resolve(null);
 
-		const [id, flagName, env, enabledNum, description] = flagRow;
+		const {
+			id,
+			name: flagName,
+			environment: env,
+			enabled: enabledNum,
+			description,
+		} = flagRow;
 
 		const ruleRows = this.em.findRulesByFlagId(id);
 
