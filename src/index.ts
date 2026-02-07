@@ -1,6 +1,6 @@
 import { Database } from "@db/sqlite";
 import fastify from "fastify";
-import { featureFlagRoutes } from "./http/controller/flag.ts";
+import FeatureFlagController from "./http/controller/flag.ts";
 import { runMigrations } from "./infra/sqlite/migrations.ts";
 
 const db = new Database("production.db");
@@ -8,7 +8,7 @@ runMigrations(db);
 
 const app = fastify();
 
-featureFlagRoutes(app);
+FeatureFlagController.initializeRoutes(app);
 
 const dbResponse = db.prepare("select sqlite_version()").value<[string]>();
 

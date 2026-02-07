@@ -21,10 +21,18 @@ export class FlagService {
 		name,
 		ruleDefinitions,
 		environment,
+		enabled,
+		description,
 	}: CreateFlagParams): Promise<FeatureFlag> {
 		const rules = this.ruleService.createMany(ruleDefinitions);
 
-		const flag = new FeatureFlag(name, rules, environment);
+		const flag = new FeatureFlag(
+			name,
+			rules,
+			environment,
+			enabled ?? false,
+			description ?? null,
+		);
 
 		await this.flagRepository.save(flag);
 
@@ -101,7 +109,7 @@ export class FlagService {
 		flagNames: string[],
 		environment: string,
 		context: Record<string, unknown>,
-	) {
+	): Promise<Record<string, { enabled: boolean; reason: string }>> {
 		const results: Record<string, { enabled: boolean; reason: string }> = {};
 
 		for (const flagName of flagNames) {
@@ -122,5 +130,7 @@ export class FlagService {
 				evaluation,
 			);
 		}
+
+		return results;
 	}
 }
